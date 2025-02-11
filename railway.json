@@ -1,19 +1,18 @@
 {
-    "services": [
-      {
-        "name": "backend",
-        "env": "python",
-        "rootDirectory": "backend",
-        "buildCommand": "pip install -r requirements.txt",
-        "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT"
-      },
-      {
-        "name": "frontend",
-        "env": "node",
-        "rootDirectory": "frontend",
-        "buildCommand": "npm install && npm run build",
-        "startCommand": "npx serve -s dist"
-      }
-    ]
-  }
-  
+  "services": [
+    {
+      "name": "backend",
+      "env": "python",
+      "rootDirectory": "backend",
+      "buildCommand": "pip install -r requirements.txt",
+      "startCommand": "bash start.sh"
+    },
+    {
+      "name": "frontend",
+      "env": "node",
+      "rootDirectory": "frontend",
+      "buildCommand": "npm install && npm run build",
+      "startCommand": "npx serve -s dist"
+    }
+  ]
+}
