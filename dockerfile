@@ -17,3 +17,4 @@ RUN cd frontend && npm install && npm run build
 
 # Comando de inicio
 CMD ["hypercorn", "backend.main:app", "--bind", "[::]:$PORT"]
+
