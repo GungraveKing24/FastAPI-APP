@@ -1,4 +1,4 @@
-# Usa Python y Node.js
+# Usa una imagen base de Python y Node.js
 FROM python:3.11-slim
 
 # Instala Node.js
