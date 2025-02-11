@@ -4,6 +4,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python -m ensurepip --upgrade && pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    "startCommand": "bash backend/start.sh"
   }
 }
