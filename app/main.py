@@ -3,16 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Configurar CORS para permitir peticiones desde el frontend
+# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambiar en producción
+    allow_origins=["https://reactapp-production-d70d.up.railway.app", "*"],  # URL exacta del frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Base de datos simulada (puedes cambiar esto a SQLite o PostgreSQL en Railway)
+# Base de datos simulada para juegos
 games = [
     {"id": 1, "name": "The Legend of Zelda", "platform": "Nintendo"},
     {"id": 2, "name": "God of War", "platform": "PlayStation"},
