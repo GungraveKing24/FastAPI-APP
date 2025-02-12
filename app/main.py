@@ -9,6 +9,7 @@ app = FastAPI()
 # Configuración de CORS
 origins = [
     "https://reactpage-production.up.railway.app",
+    "http://localhost:4173",
 ]
 
 app.add_middleware(
