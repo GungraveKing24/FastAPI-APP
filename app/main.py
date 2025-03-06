@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import user_routes, inventory_routes
-from config import engine
+from app.config import engine
 from app.models.models import Base
 
 # Configuración de la aplicación
