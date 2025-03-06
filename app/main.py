@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from routes import user_routes, inventory_routes
 from config import engine
 from models.models import Base
-from routes import user_routes
 
 # Configuración de la aplicación
 app = FastAPI()
@@ -19,3 +19,4 @@ app.add_middleware(
 )
 
 app.include_router(user_routes.router)
+app.include_router(inventory_routes.router)

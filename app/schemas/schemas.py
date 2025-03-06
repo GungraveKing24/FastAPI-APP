@@ -16,3 +16,19 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InventoryCreate(BaseModel):
+    product_name: str
+    product_description: str
+    product_quantity: int
+    product_price: float
+
+class InventoryResponse(BaseModel):
+    id: int
+    product_name: str
+    product_description: str
+    product_quantity: int
+    product_price: float
+
+    class Config:
+        from_attributes = True
