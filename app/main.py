@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import user_routes, inventory_routes
+from app.routes import user_routes, inventory_routes
 from config import engine
 from models.models import Base
 
