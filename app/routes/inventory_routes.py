@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.models import Inventory
+from app.models.models import Inventory
 
 from config import SessionLocal
-from schemas.schemas import InventoryCreate, InventoryResponse
+from app.schemas.schemas import InventoryCreate, InventoryResponse
 
 router = APIRouter(
     prefix="/inventory",
