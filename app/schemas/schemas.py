@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
+#Configuracion para el registro de los usuarios
 class UserCreate(BaseModel):
     user_name: str
     user_email: EmailStr
@@ -17,6 +18,16 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+#Configuracion para el inicio y registro de usuarios
+class UserLogin(BaseModel):
+    user_email: EmailStr
+    user_password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+#Configuracoin para el inventario
 class InventoryCreate(BaseModel):
     product_name: str
     product_description: str
@@ -32,3 +43,4 @@ class InventoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
