@@ -5,7 +5,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+#Base de datos
 DATABASE_URL = os.getenv("database_url")
+
+#Google
+CLIENT_ID = os.environ.get("CLIENT_ID", None)
+CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", None)
+
+#Session general
+secret_key = os.environ.get("secret_key", None)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

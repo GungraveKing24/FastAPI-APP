@@ -21,6 +21,7 @@ def get_db():
 def create_user(user: UserCreate, db:Session = Depends(get_db)):
     #Si el usuario ya existe, no se puede crear
     existing_user = db.query(User).filter(User.user_email == user.user_email).first()
+    
     if existing_user:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
