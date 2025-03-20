@@ -45,17 +45,18 @@ class Arrangement(Base):
 # Tabla de Pedidos
 class Order(Base):
     __tablename__ = "orders"
-
     id = Column(Integer, primary_key=True, index=True)
     order_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    order_state = Column(String, nullable=False, default="pendiente")  # 'pendiente', 'procesando', 'enviado', 'entregado'
-    order_pay_type = Column(String, nullable=False)  # 'Efectivo', 'En línea'
+    order_state = Column(String, nullable=False, default="pendiente")
+    order_pay_type = Column(String, nullable=False)
+    preferred_payment_method = Column(String, nullable=False)
+    subtotal = Column(Float, nullable=False)  # Nuevo campo para subtotal
     order_total = Column(Float, nullable=False)
     order_date = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order")
-    payment = relationship("Payment", uselist=False, back_populates="order")  # Relación uno a uno con Payment
+    payment = relationship("Payment", uselist=False, back_populates="order")
 
 # Tabla de Detalles del Pedido
 class OrderDetail(Base):
@@ -66,6 +67,7 @@ class OrderDetail(Base):
     arrangements_id = Column(Integer, ForeignKey("arrangements.id"), nullable=False)
     details_quantity = Column(Integer, nullable=False)  # Validación en esquema: > 0
     details_price = Column(Float, nullable=False)  # Precio unitario del producto
+    discount = Column(Float, default=0.0)
 
     order = relationship("Order", back_populates="order_details")
 

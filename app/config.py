@@ -12,6 +12,7 @@ DATABASE_URL = os.getenv("database_url")
 CLIENT_ID = os.environ.get("CLIENT_ID", None)
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", None)
+CYPHER_SECURE_KEY = os.environ.get("CYPHER_SECURE_KEY", None)
 
 #Session general
 secret_key = os.environ.get("secret_key", None)
