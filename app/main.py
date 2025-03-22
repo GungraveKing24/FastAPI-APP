@@ -1,15 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
-
-from starlette.requests import Request
 from starlette.middleware.sessions import SessionMiddleware
-from authlib.integrations.starlette_client import OAuth, OAuthError
-
 from urllib.parse import urlencode
 from config import secret_key
 
-from routes import auth
+from routes import auth, categories, arrangements
 
 app = FastAPI()
 
@@ -24,3 +19,5 @@ app.add_middleware(
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 app.include_router(auth.router)
+app.include_router(categories.router)
+app.include_router(arrangements.router)

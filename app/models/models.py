@@ -39,6 +39,7 @@ class Arrangement(Base):
     arr_availability = Column(Boolean, default=True)
     arr_id_cat = Column(Integer, ForeignKey("categories.id"), nullable=False)
     arr_stock = Column(Integer, default=10)
+    arr_discount = Column(Integer, default=0)
 
     category = relationship("Category", back_populates="arrangements")
 
