@@ -47,14 +47,18 @@ class Arrangement(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
-    order_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    order_state = Column(String, nullable=False, default="pendiente")
-    order_pay_type = Column(String, nullable=False)
-    preferred_payment_method = Column(String, nullable=False)
-    subtotal = Column(Float, nullable=False)  # Nuevo campo para subtotal
-    order_total = Column(Float, nullable=False)
-    order_date = Column(DateTime, default=datetime.utcnow)
+    order_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # Datos obligatorios para compras sin cuenta
+    guest_name = Column(String, nullable=True)  
+    guest_email = Column(String, nullable=True)  
+    guest_phone = Column(String, nullable=True)  
+    guest_address = Column(String, nullable=True)  
+
+    order_state = Column(String, nullable=False, default="carrito")  # Cambiado a "carrito" para estado temporal
+    order_date = Column(DateTime, default=datetime.utcnow)
+    
+    # Eliminar campos de pago de aquí (se moverán a Payment)
     user = relationship("User", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order")
     payment = relationship("Payment", uselist=False, back_populates="order")
@@ -79,7 +83,8 @@ class Payment(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     pay_method = Column(String, nullable=False)  # 'Tarjeta', 'Efectivo'
-    pay_state = Column(String, nullable=False, default="pendiente")  # 'pendiente', 'completado', 'fallido'
+    pay_state = Column(String, nullable=False, default="pendiente")
+    pay_amount = Column(Float, nullable=False)
     pay_transaction_id = Column(String, unique=True, nullable=True)  # Para pagos en línea
     pay_date = Column(DateTime, default=datetime.utcnow)
 

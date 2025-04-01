@@ -4,8 +4,12 @@ from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
 from config import secret_key
 
-from routes import auth, categories, arrangements
+from routes import auth, categories, arrangements, orders
 
+#Prod mode
+#app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+#dev mode
 app = FastAPI()
 
 app.add_middleware(
@@ -18,6 +22,7 @@ app.add_middleware(
 
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
-app.include_router(auth.router)
-app.include_router(categories.router)
-app.include_router(arrangements.router)
+app.include_router(auth.router, tags=["Authentication"])
+app.include_router(categories.router, tags=["Categorias"])
+app.include_router(arrangements.router, tags=["Arreglos"])
+app.include_router(orders.router)
