@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models.models import Order, OrderDetail, Payment, Arrangement
 from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate
 from config import SessionLocal
@@ -26,7 +26,7 @@ def get_or_create_cart(db: Session, user_id: int):
     
     # Si no hay carrito, crear uno
     if not cart:
-        cart = Order(order_user_id=user_id, order_state="carrito", order_total=0)
+        cart = Order(order_user_id=user_id, order_state="carrito")
         db.add(cart)
         db.commit()
         db.refresh(cart)
@@ -38,13 +38,23 @@ def calculate_final_price(arrangement: Arrangement) -> float:
     return arrangement.arr_price * (1 - arrangement.arr_discount / 100)
 
 # Ruta obtener la orden
-@router.get("/cart/", response_model=list[OrderResponse])
+@router.get("/cart/", response_model=list[dict])
 def get_user_orders(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     # Obtener las ordenes
-    return db.query(Order).filter(
+    orders = db.query(Order).filter(
         Order.order_user_id == current_user["id"],
         Order.order_state != "carrito"
-    ).all()
+    ).options(joinedload(Order.order_details)).all()
+
+    return [
+        {
+            "id": order.id,
+            "order_date": order.order_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "order_total": sum(detail.details_quantity * detail.details_price for detail in order.order_details),
+            "order_state": order.order_state
+        }
+        for order in orders
+    ]
 
 @router.get("/cart/details/", response_model=list)
 def get_orders_details(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -71,7 +81,6 @@ def get_orders_details(current_user: dict = Depends(get_current_user), db: Sessi
     )
 
     # Formatear la respuesta
-    print(cart_details) 
     return [
         {
             "id": detail.id,
@@ -102,21 +111,68 @@ def add_to_cart(item: OrderDetailCreate, db: Session = Depends(get_db), current_
     cart = get_or_create_cart(db, current_user["id"])
     final_price = calculate_final_price(arrangement)
     
-    order_detail = OrderDetail(
-        order_id=cart.id,
-        arrangements_id=item.arrangements_id,
-        details_quantity=item.details_quantity,
-        details_price=final_price
-    )
-    db.add(order_detail)
-    
-    payment = db.query(Payment).filter(Payment.order_id == cart.id).first()
-    if payment:
-        payment.pay_amount = cart.order_total
-    
-    db.commit()
-    db.refresh(order_detail)
+    # Verificar si el producto ya está en el carrito
+    existing_item = db.query(OrderDetail).filter(
+        OrderDetail.order_id == cart.id,
+        OrderDetail.arrangements_id == item.arrangements_id
+    ).first()
+
+    if existing_item:
+        # Si ya existe, incrementa la cantidad en lugar de agregar un nuevo registro
+        existing_item.details_quantity += 1
+        db.commit()
+        db.refresh(existing_item)
+        return existing_item
+    else:
+        order_detail = OrderDetail(
+            order_id=cart.id,
+            arrangements_id=item.arrangements_id,
+            details_quantity=item.details_quantity,
+            details_price=final_price
+        )
+        db.add(order_detail)
+        db.commit()
+        db.refresh(order_detail)
     return order_detail
+
+#Procesar el pago final
+@router.post("/cart/complete/", response_model=OrderResponse)
+def complete_order(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Obtener la orden
+    order = db.query(Order).filter(
+        Order.order_user_id == current_user["id"],
+        Order.order_state == "carrito"
+    ).first()
+
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden no encontrada")
+
+    if order.order_state == "procesado":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido procesada")
+
+    order.order_state = "procesado"
+    order.order_date = datetime.utcnow()
+
+    total_amount = sum(
+        detail.details_quantity * (db.query(Arrangement).filter(Arrangement.id == detail.arrangements_id).first().arr_price * (1 - detail.discount / 100))
+        for detail in order.order_details
+    )
+
+    payment = Payment(
+        order_id=order.id,
+        pay_method="online",
+        pay_amount=total_amount,
+        pay_state="pendiente"
+    )
+
+    db.add(payment)
+    db.flush()  # Para obtener el ID del pago antes del commit
+
+    order.payment_id = payment.id
+    db.commit()
+    db.refresh(order)
+
+    return order
 
 @router.post("/cart/plus/{order_detail_id}", response_model=OrderDetailResponse)
 def plus_quantity(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -132,6 +188,23 @@ def plus_quantity(order_detail_id: int, current_user: dict = Depends(get_current
     db.commit()
     db.refresh(item)
 
+    return item
+
+@router.post("/cart/minus/{order_detail_id}", response_model=OrderDetailResponse)
+def minus_quantity(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    cart = get_or_create_cart(db, current_user["id"])
+    item = db.query(OrderDetail).filter(
+        OrderDetail.id == order_detail_id, OrderDetail.order_id == cart.id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado en el carrito")
+    
+    if item.details_quantity > 1:
+        item.details_quantity -= 1
+        db.commit()
+        db.refresh(item)
+    
     return item
 
 @router.delete("/cart/remove/{order_detail_id}")

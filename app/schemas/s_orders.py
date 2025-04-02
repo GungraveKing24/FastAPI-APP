@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 class OrderBase(BaseModel):
-    order_user_id: int
+    order_user_id: Optional[int] = None 
     order_state: str = "carrito"
 
 class OrderCreate(OrderBase):
