@@ -47,3 +47,11 @@ class PaymentResponse(PaymentBase):
 
     class Config:
         from_attributes = True
+
+class GuestOrderCreate(BaseModel):
+    guest_name: str
+    guest_email: str
+    guest_phone: str
+    guest_address: str
+    arrangements: list[OrderDetailCreate]  # Lista de productos a comprar
+    pay_method: str
