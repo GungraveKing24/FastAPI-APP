@@ -37,7 +37,6 @@ def calculate_final_price(arrangement: Arrangement) -> float:
     #Calcular el precio final considerando el descuento
     return arrangement.arr_price * (1 - arrangement.arr_discount / 100)
 
-
 # Ruta obtener la orden
 @router.get("/cart/", response_model=list[OrderResponse])
 def get_user_orders(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -72,6 +71,7 @@ def get_orders_details(current_user: dict = Depends(get_current_user), db: Sessi
     )
 
     # Formatear la respuesta
+    print(cart_details) 
     return [
         {
             "id": detail.id,
@@ -117,6 +117,22 @@ def add_to_cart(item: OrderDetailCreate, db: Session = Depends(get_db), current_
     db.commit()
     db.refresh(order_detail)
     return order_detail
+
+@router.post("/cart/plus/{order_detail_id}", response_model=OrderDetailResponse)
+def plus_quantity(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    cart = get_or_create_cart(db, current_user["id"])
+    item = db.query(OrderDetail).filter(
+        OrderDetail.id == order_detail_id, OrderDetail.order_id == cart.id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado en el carrito")
+    
+    item.details_quantity += 1
+    db.commit()
+    db.refresh(item)
+
+    return item
 
 @router.delete("/cart/remove/{order_detail_id}")
 def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
