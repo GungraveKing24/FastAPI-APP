@@ -55,3 +55,15 @@ class GuestOrderCreate(BaseModel):
     guest_address: str
     arrangements: list[OrderDetailCreate]  # Lista de productos a comprar
     pay_method: str
+
+class OrderAdminResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str
+    Date: str
+    totalSpent: str
+    status: str
+    
+    class Config:
+        from_attributes = True

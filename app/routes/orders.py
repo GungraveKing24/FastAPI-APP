@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from models.models import Order, OrderDetail, Payment, Arrangement
-from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate
+from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate, OrderAdminResponse
 from config import SessionLocal
 from services.jwt import get_current_user
 from datetime import datetime
@@ -225,6 +225,43 @@ def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_curr
     db.delete(item)
     db.commit()
     return {"message": "Producto eliminado del carrito"}
+
+@router.get("/admin/cart/", response_model=list[OrderAdminResponse])   
+def get_admin_cart(db: Session = Depends(get_db)):
+    # Query orders that are not in "carrito" state
+    orders = db.query(Order).filter(
+        Order.order_state != "carrito"
+    ).all()
+    
+    if not orders:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron órdenes")
+    
+    # Prepare the response data
+    response = []
+    for order in orders:
+        # Get user details if it's not a guest order
+        user_name = order.guest_name or (order.user.user_name if order.user else "N/A")
+        user_email = order.guest_email or (order.user.user_email if order.user else "N/A")
+        user_phone = order.guest_phone or (order.user.user_number if order.user else "N/A")
+        
+        # Calculate total amount from order details
+        total = sum(
+            detail.details_quantity * detail.details_price * (1 - detail.discount/100) 
+            for detail in order.order_details
+        )
+        
+        response.append({
+            "id": order.id,
+            "name": user_name,
+            "email": user_email,
+            "phone": user_phone,
+            "Date": order.order_date.strftime("%d/%m/%Y"),
+            "totalSpent": f"{total:.2f}",
+            "status": order.order_state,
+            # Add any other fields you need for the frontend
+        })
+    
+    return response
 
 @router.post("/guest/checkout", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_guest_order(guest_order: GuestOrderCreate, db: Session = Depends(get_db)):
