@@ -12,9 +12,12 @@ from routes import auth, categories, arrangements, orders
 #dev mode
 app = FastAPI()
 
+origins = ["http://localhost:5173, https://reactpage-production.up.railway.app"]
+
+# Middleware CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173, http://localhost:5173/"],  # Allow only your frontend origin
+    allow_origins=origins,  # puedes usar ["*"] temporalmente para pruebas
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
