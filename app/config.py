@@ -14,6 +14,9 @@ CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", None)
 CYPHER_SECURE_KEY = os.environ.get("CYPHER_SECURE_KEY", None)
 
+#URL
+F_URL = os.environ.get("FRONTEND_URL", None)
+
 #Session general
 secret_key = os.environ.get("secret_key", None)
 

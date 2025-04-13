@@ -9,7 +9,7 @@ from services.cifrar import hash_password, verify_password
 from services.jwt import create_access_token, verify_jwt_token
 from typing import Optional
 
-from config import GOOGLE_REDIRECT_URI, CLIENT_ID, CLIENT_SECRET, SessionLocal
+from config import GOOGLE_REDIRECT_URI, CLIENT_ID, CLIENT_SECRET, SessionLocal, F_URL
 import httpx
 from urllib.parse import urlencode
 
@@ -79,10 +79,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     return {"message": "Usuario registrado exitosamente"}
 
 @router.get("/google/login")
-async def google_login(callback_url: str = "http://localhost:5173/google/callback"):
+async def google_login(callback_url: str = F_URL + "/google/callback"):
     # Verifica que la callback_url sea válida
-    if not callback_url.startswith(("http://localhost:5173", "https://tu-frontend.com")):
-        callback_url = "http://localhost:5173/google/callback"
+    if not callback_url.startswith((F_URL)):
+        callback_url = F_URL + "/google/callback"
     
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"
