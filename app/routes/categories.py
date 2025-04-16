@@ -39,3 +39,20 @@ async def create_category(category_data: CategoryCreate, current_user: dict = De
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(db: Session = Depends(get_db)):
     return db.query(Category).all()
+
+@router.patch("/categories/{categories_id}", response_model=CategoryResponse)
+async def edit_category(current_user: dict = Depends(get_current_user), categories_id: int = None, category_data: CategoryCreate = None, db: Session = Depends(get_db)):
+    # Verificar permisos de administrador
+    if current_user["user_role"] != "Administrador":
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+    
+    # Verificar si la categoría existe
+    category = db.query(Category).filter(Category.id == categories_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    
+    # Actualizar categoría
+    category.name_cat = category_data.name_cat
+    db.commit()
+    db.refresh(category)
+    return category
