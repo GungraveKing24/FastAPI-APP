@@ -20,6 +20,11 @@ F_URL = os.environ.get("FRONTEND_URL", None)
 #Session general
 secret_key = os.environ.get("secret_key", None)
 
+# Cloudinary config
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", None)
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", None)
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", None)
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
