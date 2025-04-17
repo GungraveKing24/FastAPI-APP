@@ -106,30 +106,67 @@ async def toggle_arrangement_status_test(
 
     return {"message": "Arreglo actualizado exitosamente"}
 
+# Obtener un arreglo por ID
+@router.get("/arrangements/{arrangements_id}", response_model=ArrangementResponse)
+async def get_arrangement(arrangements_id: int, db: Session = Depends(get_db)):
+    return db.query(Arrangement).filter(Arrangement.id == arrangements_id).first()
+
 # Editar arreglos
 @router.patch("/arrangements/edit/{arrangements_id}", response_model=ArrangementResponse)
 async def edit_arrangement(
-    current_user: dict = Depends(get_current_user), 
-    arrangements_id: int = None, 
-    arrangement_data: arrangment_update = None, 
-    db: Session = Depends(get_db)):
-
+    arrangements_id: int,
+    arr_name: str = Form(None),
+    arr_description: str = Form(None),
+    arr_price: float = Form(None),
+    arr_id_cat: int = Form(None),
+    arr_stock: int = Form(None),
+    arr_discount: int = Form(None),
+    image: UploadFile = File(None),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Actualiza parcialmente un arreglo floral.
+    Solo los campos proporcionados serán actualizados.
+    """
+    # Verificar permisos
     if current_user["user_role"] != "Administrador":
         raise HTTPException(status_code=403, detail="No tienes permiso")
     
+    # Buscar el arreglo
     arreglo = db.query(Arrangement).filter(Arrangement.id == arrangements_id).first()
     if not arreglo:
         raise HTTPException(status_code=404, detail="Arreglo no encontrado")
     
-    arreglo.arr_name = arrangement_data.arr_name
-    arreglo.arr_description = arrangement_data.arr_description
-    arreglo.arr_price = arrangement_data.arr_price
-    arreglo.arr_img_url = arrangement_data.arr_img_url
-    arreglo.arr_id_cat = arrangement_data.arr_id_cat
-    arreglo.arr_stock = arrangement_data.arr_stock
-    arreglo.arr_discount = arrangement_data.arr_discount
-
-    db.commit()
-    db.refresh(arreglo)
-
-    return {"message": "Arreglo actualizado exitosamente"}
+    # Actualizar campos proporcionados
+    if arr_name is not None:
+        arreglo.arr_name = arr_name
+    if arr_description is not None:
+        arreglo.arr_description = arr_description
+    if arr_price is not None:
+        arreglo.arr_price = arr_price
+    if arr_id_cat is not None:
+        arreglo.arr_id_cat = arr_id_cat
+    if arr_stock is not None:
+        arreglo.arr_stock = arr_stock
+    if arr_discount is not None:
+        arreglo.arr_discount = arr_discount
+    
+    # Manejar imagen si se proporciona
+    if image:
+        if not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+        
+        image_url = await upload_file(image)
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Error al subir la imagen")
+        
+        arreglo.arr_img_url = image_url
+    
+    try:
+        db.commit()
+        db.refresh(arreglo)
+        return arreglo
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar: {str(e)}")
