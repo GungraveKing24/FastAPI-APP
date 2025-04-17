@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from models.models import Arrangement, Category
 from schemas.s_arreglos import arrangement_create, ArrangementResponse, arrangment_update
@@ -22,9 +22,14 @@ async def get_arrangements(db: Session = Depends(get_db)):
 
 @router.post("/create/arrangements")
 async def create_arrangement(
-        arrangement_data: arrangement_create, 
-        image: UploadFile = File(...), 
-        current_user: dict = Depends(get_current_user), 
+        arr_name: str = Form(...),
+        arr_description: str = Form(...),
+        arr_price: float = Form(...),
+        arr_id_cat: int = Form(...),
+        arr_stock: int = Form(...),
+        arr_discount: int = Form(0),
+        image: UploadFile = File(...),
+        current_user: dict = Depends(get_current_user),
         db: Session = Depends(get_db)
     ):
     
@@ -34,14 +39,14 @@ async def create_arrangement(
     
     # Verificar si el arreglo ya existe
     existing_arrangement = db.query(Arrangement).filter(
-        Arrangement.arr_name == arrangement_data.arr_name
+        Arrangement.arr_name == arr_name  # Use the parameter directly
     ).first()
     
     if existing_arrangement:
         raise HTTPException(status_code=400, detail="El arreglo ya existe")
     
     # Verificar si la categoría existe
-    category = db.query(Category).filter(Category.id == arrangement_data.arr_id_cat).first()
+    category = db.query(Category).filter(Category.id == arr_id_cat).first()
     if not category:
         raise HTTPException(status_code=400, detail="La categoría no existe")
     
@@ -56,13 +61,13 @@ async def create_arrangement(
 
     # Crear nuevo arreglo con la URL de Cloudinary
     new_arrangement = Arrangement(
-        arr_name=arrangement_data.arr_name,
-        arr_description=arrangement_data.arr_description,
-        arr_price=arrangement_data.arr_price,
-        arr_img_url=image_url,  # Usar la URL de Cloudinary aquí
-        arr_id_cat=arrangement_data.arr_id_cat,
-        arr_stock=arrangement_data.arr_stock,
-        arr_discount=arrangement_data.arr_discount
+        arr_name=arr_name,  # Use the parameter directly
+        arr_description=arr_description,
+        arr_price=arr_price,
+        arr_img_url=image_url,
+        arr_id_cat=arr_id_cat,
+        arr_stock=arr_stock,
+        arr_discount=arr_discount
     )
     
     db.add(new_arrangement)
@@ -128,8 +133,3 @@ async def edit_arrangement(
     db.refresh(arreglo)
 
     return {"message": "Arreglo actualizado exitosamente"}
-
-@router.post("/upload-image/")
-async def upload_image(image: UploadFile = File(...)):
-    url = upload_file(image.file)
-    return {"image_url": url}

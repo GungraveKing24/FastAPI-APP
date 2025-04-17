@@ -10,14 +10,20 @@ cloudinary.config(
     secure=True
 )
 
-def upload_file(file):
+async def upload_file(file):
     try:
         file.seek(0)  # Asegura que estás leyendo desde el inicio
-        upload_result = cloudinary.uploader.upload(file)
+        file_contents = await file.read()
+        upload_result = cloudinary.uploader.upload(
+            file_contents,
+            resource_type="auto"
+        )
         if upload_result:
-            return upload_result["secure_url"]  # Usa HTTPS mejor
+            return upload_result.get("secure_url")  # Usa HTTPS mejor
         else:
             return None
     except Exception as e:
-        print("Cloudinary upload error:", e)
+        print(f"Cloudinary upload error: {str(e)}")
         return None
+    finally:
+        await file.seek(0)  # Asegura que estás leyendo desde el inicio
