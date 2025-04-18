@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException 
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from fastapi.responses import RedirectResponse 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -7,6 +7,7 @@ from schemas.schemas import UserCreate, UserLogin, UserGoogleAuth
 
 from services.cifrar import hash_password, verify_password
 from services.jwt import create_access_token, verify_jwt_token
+from services.cloudinary import upload_file
 from typing import Optional
 
 from config import GOOGLE_REDIRECT_URI, CLIENT_ID, CLIENT_SECRET, SessionLocal, F_URL
@@ -57,19 +58,42 @@ async def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
 
 #Registro manual
 @router.post("/register")
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.user_email == user_data.user_email).first()
+async def register(
+        user_name: str = Form(...),
+        user_email: str = Form(...),
+        user_password: str = Form(...),
+        user_number: str = Form(...),  # <-- cambiado a str
+        user_direction: str = Form(...),
+        image: UploadFile = File(...),
+        db: Session = Depends(get_db)
+    ):
+    # Verificar si ya existe el usuario por correo
+    existing_user = db.query(User).filter(User.user_email == user_email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Este correo ya existe, por favor inicie sesión")
 
-    hashed_password = hash_password(user_data.user_password)
-    print(user_data.user_name, user_data.user_email, user_data.user_password, user_data.user_role, user_data.user_direction, user_data.user_number)
+    # Verificar que sea una imagen y no otro tipo de archivo
+    if not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+
+    # Subir la imagen a Cloudinary
+    image_url = await upload_file(image)
+    if not image_url:
+        raise HTTPException(status_code=500, detail="No se pudo subir la imagen.")
+
+    # Hashear contraseña
+    hashed_email = hash_password(user_email)
+    hashed_password = hash_password(user_password)
+
+    # Crear usuario
     new_user = User(
-        user_name=user_data.user_name,
-        user_email=user_data.user_email,
+        user_name=user_name,
+        user_email=user_email,
         user_password=hashed_password,
-        user_number=user_data.user_number,
-        user_direction=user_data.user_direction
+        user_number=user_number,
+        user_direction=user_direction,
+        user_url_photo=image_url,  # <-- Aquí se guarda la URL de la imagen
+        user_role="Cliente"
     )
 
     db.add(new_user)
