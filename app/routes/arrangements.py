@@ -16,9 +16,12 @@ def get_db():
         db.close()
 
 @router.get("/arrangements/", response_model=list[ArrangementResponse])
-async def get_arrangements(db: Session = Depends(get_db)):
-    arrangements = db.query(Arrangement).all()
-    return arrangements
+async def get_all_arrangements(db: Session = Depends(get_db)):
+    return db.query(Arrangement).all()
+
+@router.get("/arrangements/by-name/{aarr_name}", response_model=list[ArrangementResponse])
+async def get_arrangements_by_name(aarr_name: str, db: Session = Depends(get_db)):
+    return db.query(Arrangement).filter(Arrangement.arr_name == aarr_name).all()
 
 @router.post("/create/arrangements")
 async def create_arrangement(
