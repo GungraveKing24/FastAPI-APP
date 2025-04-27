@@ -25,6 +25,11 @@ CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", None)
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", None)
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", None)
 
+# Wompi config
+WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", None)
+WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", None)
+WOMPI_URL = os.environ.get("WOMPI_URL", None)
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

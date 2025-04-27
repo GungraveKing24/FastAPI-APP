@@ -217,7 +217,6 @@ def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_curr
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado en el carrito")
     
-    cart.order_total = max(0, cart.order_total - (item.details_price * item.details_quantity))
     payment = db.query(Payment).filter(Payment.order_id == cart.id).first()
     if payment:
         payment.pay_amount = cart.order_total
