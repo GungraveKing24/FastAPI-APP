@@ -67,3 +67,16 @@ class OrderAdminResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+from pydantic import BaseModel
+
+class OrderDetailSchema(BaseModel):
+    id: int
+    order_id: int
+    arrangements_id: int
+    details_quantity: int
+    details_price: float
+    discount: float
+
+    class Config:
+        from_attributes = True

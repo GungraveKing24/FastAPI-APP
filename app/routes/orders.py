@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from models.models import Order, OrderDetail, Payment, Arrangement
-from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate, OrderAdminResponse
+from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate, OrderAdminResponse, OrderDetailSchema
 from config import SessionLocal
 from services.jwt import get_current_user
 from datetime import datetime
@@ -93,6 +93,16 @@ def get_orders_details(current_user: dict = Depends(get_current_user), db: Sessi
         }
         for detail in cart_details
     ]
+
+@router.get("/cart/order_details/{order_id}", response_model=list[OrderDetailSchema])
+def get_order_details(order_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verificar que sea el usuario que creo la solicitud
+    user_order = db.query(Order).filter(Order.id == order_id and Order.order_user_id == current_user["id"]).first()
+    if not user_order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden no encontrada")
+    else:
+        cart = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
+        return cart
 
 # Ruta obtener el detalle de la orden
 @router.get("/cart/details/quantity", response_model=int)
@@ -226,7 +236,10 @@ def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_curr
     return {"message": "Producto eliminado del carrito"}
 
 @router.get("/admin/cart/", response_model=list[OrderAdminResponse])   
-def get_admin_cart(db: Session = Depends(get_db)):
+def get_admin_cart(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user["user_role"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     # Query orders that are not in "carrito" state
     orders = db.query(Order).filter(
         Order.order_state != "carrito"
