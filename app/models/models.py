@@ -16,6 +16,7 @@ class User(Base):
     user_number = Column(String, nullable=False)  # Se debe validar en el esquema que tenga entre 7 y 9 números
     user_url_photo = Column(String, default="N/A")
     user_google_id = Column(String, unique=True, nullable=True)  # Para login con Google
+    user_account_state = Column(Boolean, default=True)
     orders = relationship("Order", back_populates="user")
 
 # Tabla de Categorías
