@@ -237,7 +237,7 @@ def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_curr
 
 @router.get("/admin/cart/", response_model=list[OrderAdminResponse])   
 def get_admin_cart(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    if current_user["user_role"] != "admin":
+    if current_user["user_role"] != "Administrador":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
 
     # Query orders that are not in "carrito" state
