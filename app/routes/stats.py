@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
 from models.models import Payment, Order
 from config import SessionLocal
 from services.jwt import get_current_user
-import timedelta
+
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
 

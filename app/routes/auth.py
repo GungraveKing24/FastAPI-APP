@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, status 
 from fastapi.responses import RedirectResponse 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -6,7 +6,7 @@ from models.models import User
 from schemas.schemas import UserCreate, UserLogin, UserGoogleAuth
 
 from services.cifrar import hash_password, verify_password
-from services.jwt import create_access_token, verify_jwt_token
+from services.jwt import create_access_token, verify_jwt_token, get_current_user
 from services.cloudinary import upload_file
 from typing import Optional
 
@@ -206,3 +206,94 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
         print("Error en la autenticación:", str(e))
         error_url = f"{callback_url}?error=Error interno del servidor"
         return RedirectResponse(url=error_url)
+    
+@router.patch("/user/update")
+async def update_user(
+    user_name: Optional[str] = Form(None),
+    user_email: Optional[str] = Form(None),
+    user_number: Optional[str] = Form(None),
+    user_direction: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    token_data: dict = Depends(verify_jwt_token),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == token_data["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if user_name: user.user_name = user_name
+    if user_email: user.user_email = user_email
+    if user_number: user.user_number = user_number
+    if user_direction: user.user_direction = user_direction
+
+    if image:
+        if not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Archivo no válido")
+        url = await upload_file(image)
+        user.user_url_photo = url or user.user_url_photo
+
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Usuario actualizado correctamente"}
+
+@router.patch("/user/password")
+async def update_user_password(
+    current_user: dict = Depends(get_current_user), 
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+
+    # Verificar rol del usuario
+    if current_user["user_role"] != "Cliente":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Solo los clientes pueden cambiar su contraseña"
+        )
+    
+    # Obtener usuario de la base de datos
+    user = db.query(User).filter(User.id == current_user["sub"]).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Verificar contraseña actual
+    if not verify_password(old_password, user.user_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual no es correcta"
+        )
+    
+    # Validar coincidencia de nuevas contraseñas
+    if new_password != confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Las nuevas contraseñas no coinciden"
+        )
+    
+    # Verificar que la nueva contraseña sea diferente
+    if verify_password(new_password, user.user_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La nueva contraseña debe ser diferente a la actual"
+        )
+    
+    # Validar fortaleza de la nueva contraseña (mínimo 8 caracteres)
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña debe tener al menos 8 caracteres"
+        )
+    
+    # Actualizar contraseña
+    user.user_password = hash_password(new_password)
+    db.commit()
+    
+    return {
+        "message": "Contraseña actualizada correctamente",
+        "status": "success"
+    }
