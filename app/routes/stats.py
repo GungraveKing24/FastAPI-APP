@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from models import Payment, Order
+from models.models import Payment, Order
 from config import SessionLocal
 from services.jwt import get_current_user
 import timedelta
