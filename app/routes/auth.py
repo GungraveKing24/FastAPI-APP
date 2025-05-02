@@ -11,7 +11,7 @@ from services.cloudinary import upload_file
 from typing import Optional
 
 from config import GOOGLE_REDIRECT_URI, CLIENT_ID, CLIENT_SECRET, SessionLocal, F_URL
-import httpx
+import httpx, uuid
 from urllib.parse import urlencode
 
 router = APIRouter()
@@ -62,9 +62,9 @@ async def register(
         user_name: str = Form(...),
         user_email: str = Form(...),
         user_password: str = Form(...),
-        user_number: str = Form(...),  # <-- cambiado a str
+        user_number: str = Form(...),
         user_direction: str = Form(...),
-        image: UploadFile = File(...),
+        image: Optional[UploadFile] = File(None),  # Hacer el parámetro opcional
         db: Session = Depends(get_db)
     ):
     # Verificar si ya existe el usuario por correo
@@ -72,14 +72,20 @@ async def register(
     if existing_user:
         raise HTTPException(status_code=400, detail="Este correo ya existe, por favor inicie sesión")
 
-    # Verificar que sea una imagen y no otro tipo de archivo
-    if not image.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+    # URL de imagen por defecto
+    default_image_url = "https://res.cloudinary.com/demo/image/upload/c_scale,w_200/d_avatar.png/non_existing_id.png"
+    image_url = default_image_url
 
-    # Subir la imagen a Cloudinary
-    image_url = await upload_file(image)
-    if not image_url:
-        raise HTTPException(status_code=500, detail="No se pudo subir la imagen.")
+    # Procesar imagen solo si se proporcionó
+    if image is not None:
+        # Verificar que sea una imagen
+        if not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+
+        # Subir la imagen a Cloudinary
+        uploaded_url = await upload_file(image)
+        if uploaded_url:
+            image_url = uploaded_url
 
     # Hashear contraseña
     hashed_email = hash_password(user_email)
@@ -92,7 +98,7 @@ async def register(
         user_password=hashed_password,
         user_number=user_number,
         user_direction=user_direction,
-        user_url_photo=image_url,  # <-- Aquí se guarda la URL de la imagen
+        user_url_photo=image_url,
         user_role="Cliente"
     )
 
@@ -158,13 +164,18 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
                 error_url = f"{callback_url}?error=No se pudo obtener el correo del usuario"
                 return RedirectResponse(url=error_url)
 
+            # Generate random unnaccessable password
+            raw_password = str(uuid.uuid4())
+            
+            hashed_password = hash_password(raw_password)
+            
             # Buscar o crear usuario
             user = db.query(User).filter(User.user_email == userinfo["email"]).first()
             if not user:
                 new_user = User(
                     user_name=userinfo.get("name", "Usuario de Google"),
                     user_email=userinfo["email"],
-                    user_password="",
+                    user_password=hashed_password,
                     user_url_photo=userinfo.get("picture", ""),
                     user_number="",
                     user_role="Cliente",

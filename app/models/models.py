@@ -110,3 +110,4 @@ class Inventory(Base):
     product_description = Column(Text)
     product_quantity = Column(Integer, nullable=False, default=0)
     product_price = Column(Float, nullable=False, default=0.00)
+
