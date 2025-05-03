@@ -208,34 +208,28 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
         return RedirectResponse(url=error_url)
     
 @router.patch("/user/update")
-async def update_user(
+async def update_user_data(
+    current_user: dict = Depends(get_current_user),
     user_name: Optional[str] = Form(None),
-    user_email: Optional[str] = Form(None),
     user_number: Optional[str] = Form(None),
     user_direction: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
-    token_data: dict = Depends(verify_jwt_token),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.id == token_data["sub"]).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    print(f"user_name: {user_name}")
+    print(f"user_number: {user_number}")
+    print(f"user_direction: {user_direction}")
+    print(f"image: {image}")
 
-    if user_name: user.user_name = user_name
-    if user_email: user.user_email = user_email
-    if user_number: user.user_number = user_number
-    if user_direction: user.user_direction = user_direction
-
-    if image:
-        if not image.content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Archivo no válido")
-        url = await upload_file(image)
-        user.user_url_photo = url or user.user_url_photo
-
-    db.commit()
-    db.refresh(user)
-
-    return {"message": "Usuario actualizado correctamente"}
+    # Verificar rol del usuario si es necesario
+    if current_user["user_role"] != "Cliente":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Solo los clientes pueden actualizar sus datos")
+    
+    # Obtener usuario de la base de datos
+    user = db.query(User).filter(User.id == current_user["sub"]).first()
+    
+    return None
 
 @router.patch("/user/password")
 async def update_user_password(
