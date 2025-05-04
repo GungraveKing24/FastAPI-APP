@@ -20,7 +20,7 @@ async def create_comment(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user["user_role"].lower() != "Cliente":
+    if current_user["user_role"] != "Cliente":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autorizado")
 
     user = db.query(User).filter(User.id == current_user["sub"]).first()
