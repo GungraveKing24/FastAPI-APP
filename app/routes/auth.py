@@ -206,29 +206,37 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
         print("Error en la autenticación:", str(e))
         error_url = f"{callback_url}?error=Error interno del servidor"
         return RedirectResponse(url=error_url)
-    
-@router.patch("/user/update")
-async def update_user_data(
-    current_user: dict = Depends(get_current_user),
-    user_name: Optional[str] = Form(None),
-    user_number: Optional[str] = Form(None),
-    user_direction: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
-):
-    
-    print(f"user_name: {user_name}")
-    print(f"user_number: {user_number}")
-    print(f"user_direction: {user_direction}")
-    print(f"image: {image}")
 
-    # Verificar rol del usuario si es necesario
+@router.patch("/profile/update")
+async def update_profile(
+    nombre: str = Form(...),
+    numero: str = Form(...),
+    direccion: str = Form(...),
+    foto: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if current_user["user_role"] != "Cliente":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Solo los clientes pueden actualizar sus datos")
-    
-    # Obtener usuario de la base de datos
-    user = db.query(User).filter(User.id == current_user["sub"]).first()
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autorizado")
+
+    # Comprobacion de usuario
+    user = db.query(User).filter(User.id == current_user["sub"] and User.user_email == current_user["email"]).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+
+    if foto == None:
+        foto = current_user["user_url_photo"]
+    else:
+        foto = await upload_file(foto)
+
+    user.user_name = nombre
+    user.user_number = numero
+    user.user_direction = direccion
+    user.user_url_photo = foto
+
+    db.commit()
+    db.refresh(user)
+
     return None
 
 @router.patch("/user/password")
@@ -290,4 +298,19 @@ async def update_user_password(
     return {
         "message": "Contraseña actualizada correctamente",
         "status": "success"
+    }
+
+@router.get("/users/me")
+async def get_current_profile(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == current_user["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    return {
+        "user_name": user.user_name,
+        "user_email": user.user_email,
+        "user_number": user.user_number,
+        "user_direction": user.user_direction,
+        "user_url_photo": user.user_url_photo,
+        "user_role": user.user_role
     }

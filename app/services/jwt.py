@@ -12,7 +12,7 @@ def create_access_token(data: dict):
     # Asegurar que 'sub' sea string
     if 'sub' in to_encode:
         to_encode['sub'] = str(to_encode['sub'])  # Conversión explícita a string
-    expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + timedelta(minutes=60)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, secret_key, algorithm="HS256")
 
