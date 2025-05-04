@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
 from config import secret_key
 
-from routes import auth, categories, arrangements, orders, payment, users, stats
+from routes import auth, categories, arrangements, orders, payment, users, stats, coments
 
 #Prod mode
 #app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -32,4 +32,5 @@ app.include_router(arrangements.router, tags=["Arreglos"])
 app.include_router(payment.router, tags=["Pagos"])
 app.include_router(stats.router, tags=["Estadísticas"])
 app.include_router(users.router, tags=["Usuarios"])
+app.include_router(coments.router, tags=["Comentarios"])
 app.include_router(orders.router)
