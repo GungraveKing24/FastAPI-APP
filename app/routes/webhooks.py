@@ -42,7 +42,7 @@ def verify_wompi_signature(body: bytes, received_signature: str) -> bool:
 async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
     logger.info("\n=== Received Wompi Webhook ===")
     try:
-        # 1. Read and parse the request
+        # 1. Leer y parsear el request
         body_bytes = await request.body()
         body = json.loads(body_bytes.decode('utf-8'))
         signature = request.headers.get("x-wompi-signature", "")
@@ -50,14 +50,8 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Headers: {dict(request.headers)}")
         logger.info(f"Body: {json.dumps(body, indent=2)}")
 
-        # 2. Validate required fields based on actual Wompi payload
-        required_fields = [
-            "IdTransaccion", 
-            "ResultadoTransaccion", 
-            "Monto", 
-            "EnlacePago"
-        ]
-        
+        # 2. Validar campos requeridos
+        required_fields = ["IdTransaccion", "ResultadoTransaccion", "Monto", "EnlacePago"]
         for field in required_fields:
             if field not in body:
                 error_msg = f"Missing required field: {field}"
@@ -75,50 +69,42 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Status: {status}")
         logger.info(f"Amount: {amount}")
 
-        # 3. Find the order and payment
-        order = db.query(Order).join(Payment).filter(
+        # 3. Buscar el pago (no la orden) primero
+        payment = db.query(Payment).filter(
             Payment.pay_transaction_id == reference
-        ).options(joinedload(Order.payment)).first()
+        ).first()
 
-        if not order:
-            error_msg = f"Order not found for reference: {reference}"
+        if not payment:
+            error_msg = f"Payment not found for reference: {reference}"
             logger.error(error_msg)
             raise HTTPException(status_code=404, detail=error_msg)
 
-        # Verificar que haya exactamente un pago
-        if len(order.payment) != 1:
-            error_msg = f"Expected exactly one payment, found {len(order.payment)}"
+        # Ahora obtener la orden relacionada
+        order = db.query(Order).filter(Order.id == payment.order_id).first()
+        if not order:
+            error_msg = f"Order not found for payment: {payment.id}"
             logger.error(error_msg)
-            raise HTTPException(status_code=400, detail=error_msg)
+            raise HTTPException(status_code=404, detail=error_msg)
 
-        logger.info(f"\nFound order:")
-        logger.info(f"Order ID: {order.id}")
-        logger.info(f"Current state: {order.order_state}")
-        logger.info(f"Payment amount: {order.payment.pay_amount}")
-        logger.info(f"Payment state: {order.payment.pay_state}")
-
-        # Obtener el único pago
-        payment = order.payment[0]
-
-        logger.info(f"\nFound order:")
+        logger.info(f"\nFound payment and order:")
         logger.info(f"Order ID: {order.id}")
         logger.info(f"Current state: {order.order_state}")
         logger.info(f"Payment amount: {payment.pay_amount}")
         logger.info(f"Payment state: {payment.pay_state}")
 
-        # 4. Verify transaction status
+        # 4. Verificar estado de la transacción
         if status not in ["exitosaaprobada", "aprobada"]:
             error_msg = f"Transaction not approved. Status: {status}"
             logger.error(error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
 
-        # 5. Verify amount matches
+        # 5. Verificar que el monto coincida
         if abs(float(amount) - float(payment.pay_amount)) > 0.01:
             error_msg = f"Amount mismatch. Expected: {payment.pay_amount}, Received: {amount}"
             logger.error(error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
 
-        # 6. Verify signature if present
+        # 6. Verificar firma si está presente
         if signature:
             is_valid = verify_wompi_signature(body_bytes, signature)
             if not is_valid:
@@ -129,15 +115,14 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         else:
             logger.warning("No HMAC signature received, relying on status validation")
 
-        # 7. Update database - only if all validations pass
+        # 7. Actualizar base de datos
         try:
-            # Update payment
-            payment = order.payment
+            # Actualizar pago
             payment.pay_state = "aprobado"
             payment.pay_transaction_id = transaction_id
-            payment.pay_date = datetime.datetime.utcnow()
+            payment.pay_date = datetime.utcnow()
             
-            # Update order
+            # Actualizar orden
             order.order_state = "completado"
             
             db.commit()
