@@ -113,12 +113,19 @@ def get_order_details(order_id: int, db: Session = Depends(get_db), current_user
 @router.get("/cart/details/quantity", response_model=int)
 def get_user_cart(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     # Obtener detalles del carrito
+    if current_user["user_role"] == "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     cart = get_or_create_cart(db, current_user["id"])
     
     return db.query(OrderDetail).filter(OrderDetail.order_id == cart.id).count()
 
 @router.post("/cart/add", response_model=OrderDetailResponse, status_code=status.HTTP_201_CREATED)
 def add_to_cart(item: OrderDetailCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+
+    if current_user["user_role"] == "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+    
     arrangement = db.query(Arrangement).filter(Arrangement.id == item.arrangements_id).first()
     if not arrangement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arreglo floral no encontrado")
@@ -191,6 +198,10 @@ def complete_order(db: Session = Depends(get_db), current_user: dict = Depends(g
 
 @router.post("/cart/plus/{order_detail_id}", response_model=OrderDetailResponse)
 def plus_quantity(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+
+    if current_user["user_role"] == "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     cart = get_or_create_cart(db, current_user["id"])
     item = db.query(OrderDetail).filter(
         OrderDetail.id == order_detail_id, OrderDetail.order_id == cart.id
@@ -207,6 +218,10 @@ def plus_quantity(order_detail_id: int, current_user: dict = Depends(get_current
 
 @router.post("/cart/minus/{order_detail_id}", response_model=OrderDetailResponse)
 def minus_quantity(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+
+    if current_user["user_role"] == "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     cart = get_or_create_cart(db, current_user["id"])
     item = db.query(OrderDetail).filter(
         OrderDetail.id == order_detail_id, OrderDetail.order_id == cart.id
@@ -224,6 +239,10 @@ def minus_quantity(order_detail_id: int, current_user: dict = Depends(get_curren
 
 @router.delete("/cart/remove/{order_detail_id}")
 def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+
+    if current_user["user_role"] == "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     cart = get_or_create_cart(db, current_user["id"])
     item = db.query(OrderDetail).filter(
         OrderDetail.id == order_detail_id, OrderDetail.order_id == cart.id
