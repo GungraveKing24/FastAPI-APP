@@ -251,10 +251,6 @@ def remove_from_cart(order_detail_id: int, current_user: dict = Depends(get_curr
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado en el carrito")
     
-    payment = db.query(Payment).filter(Payment.order_id == cart.id).first()
-    if payment:
-        payment.pay_amount = cart.order_total
-    
     db.delete(item)
     db.commit()
     return {"message": "Producto eliminado del carrito"}
