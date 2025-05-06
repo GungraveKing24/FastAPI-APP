@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from models.models import Order, OrderDetail, Payment, Arrangement
+from models.models import Order, OrderDetail, Payment, Arrangement, User
 from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate, OrderAdminResponse, OrderDetailSchema
+from schemas.s_payment import PaymentLinkResponse
 from config import SessionLocal
 from services.jwt import get_current_user
+from services.wompi import create_payment_link
 from datetime import datetime
 from typing import List
-import logging
+import logging, uuid
 
 router = APIRouter(prefix='/orders', tags=['Orders'])
 logger = logging.getLogger(__name__)
@@ -324,3 +326,125 @@ def create_guest_order(guest_order: GuestOrderCreate, db: Session = Depends(get_
     db.refresh(order)
 
     return order
+
+@router.post("/payments/create/", response_model=PaymentLinkResponse)
+async def create_payment(
+    order_data: dict,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # 1. Verificar autenticación y permisos
+        print("\n=== Datos del usuario ===")
+        print(f"ID Usuario: {current_user.get('id')}")
+        print(f"Rol Usuario: {current_user.get('user_role')}")
+        
+        if current_user["user_role"] != "Cliente":
+            raise HTTPException(status_code=403, detail="Acceso denegado")
+
+        # 2. Obtener usuario de la base de datos
+        user = db.query(User).filter(User.id == current_user["id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        print(f"\nUsuario DB: {user.user_name} ({user.user_email})")
+
+        # 3. Obtener el carrito del usuario
+        order = db.query(Order).filter(
+            Order.order_user_id == user.id,
+            Order.order_state == "carrito"
+        ).first()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="No tienes un carrito activo")
+        
+        print(f"\n=== Datos del carrito ===")
+        print(f"ID Orden: {order.id}")
+        print(f"Estado: {order.order_state}")
+        print(f"Fecha: {order.order_date}")
+
+        # 4. Obtener detalles del carrito
+        order_details = db.query(OrderDetail).filter(
+            OrderDetail.order_id == order.id
+        ).all()
+
+        if not order_details:
+            raise HTTPException(status_code=400, detail="El carrito está vacío")
+
+        print("\n=== Productos en el carrito ===")
+        for i, detail in enumerate(order_details, 1):
+            arrangement = db.query(Arrangement).filter(
+                Arrangement.id == detail.arrangements_id
+            ).first()
+            
+            print(f"\nProducto #{i}:")
+            print(f"ID: {detail.arrangements_id}")
+            print(f"Nombre: {arrangement.arr_name if arrangement else 'No encontrado'}")
+            print(f"Cantidad: {detail.details_quantity}")
+            print(f"Precio unitario: ${detail.details_price}")
+            print(f"Descuento: {detail.discount}%")
+            
+            final_price = detail.details_price * (1 - (detail.discount / 100))
+            subtotal = final_price * detail.details_quantity
+            print(f"Subtotal: ${subtotal:.2f}")
+
+        # 5. Calcular total (solo para mostrar)
+        total = sum(
+            detail.details_price * (1 - (detail.discount / 100)) * detail.details_quantity
+            for detail in order_details
+        )
+        print(f"\nTOTAL DEL CARRITO: ${total:.2f}")
+
+        # 6. Mostrar los datos recibidos del frontend
+        print("\n=== Datos recibidos del frontend ===")
+        print(order_data)
+
+        try:
+            reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
+            
+            enlace_pago = await create_payment_link(
+                amount=total,
+                description="Compra de arreglos florales",
+                reference=reference,
+                customer_email=user.user_email  # Usar el email del usuario de la DB
+            )
+
+            print("\n=== Respuesta de Wompi ===")
+            print(enlace_pago)
+
+            # Crear registro de pago en la base de datos
+            payment = Payment(
+                order_id=order.id,
+                pay_method="Tarjeta",
+                pay_amount=total,
+                pay_state="pendiente",
+                pay_transaction_id=reference
+            )
+            
+            db.add(payment)
+            db.commit()
+
+            # Mapear la respuesta de Wompi a tu estructura de respuesta
+            return {
+                "payment_url": enlace_pago.get("urlEnlace") or enlace_pago.get("urlEnlaceLargo"),
+                "reference": reference,
+                "amount": total,
+                "idEnlace": enlace_pago.get("idEnlace"),
+                "urlQrCodeEnlace": enlace_pago.get("urlQrCodeEnlace"),
+                "estaProductivo": enlace_pago.get("estaProductivo")
+            }
+
+        except Exception as e:
+            db.rollback()
+            print(f"\n!!! Error al crear pago: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"No se pudo crear el enlace de pago: {str(e)}"
+            )
+
+    except HTTPException as he:
+        print(f"\n!!! Error controlado: {he.detail}")
+        raise
+    except Exception as e:
+        print(f"\n!!! Error inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
