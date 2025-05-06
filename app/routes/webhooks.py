@@ -73,6 +73,7 @@ async def validate_transaction_with_wompi(transaction_id: str) -> bool:
 
 @router.post("/transaction/complete")
 async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
+    print("\n=== Webhook recibido ===")
     try:
         # 1. Leer el cuerpo del request
         body_bytes = await request.body()
