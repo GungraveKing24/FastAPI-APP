@@ -49,8 +49,8 @@ async def create_payment_link(amount: float, description: str, reference: str, c
                 "permitirPagoEnCuotasAgricola": False
             },
             "configuracion": {
-                "urlRedirect": "https://tudominio.com/confirmacion",
-                "urlWebhook": "https://tudominio.com/api/webhook/wompi",
+                "urlRedirect": "http://localhost:5173/profile",
+                "urlWebhook": "https://fastapi-app-production-f08f.up.railway.app/webhooks/transaction/complete",
                 "emailsNotificacion": customer_email,
                 "notificarTransaccionCliente": True
             }
