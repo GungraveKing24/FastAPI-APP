@@ -5,7 +5,7 @@ from config import SessionLocal, WOMPI_CLIENT_SECRET
 from typing import Optional
 import hmac, hashlib, json, logging, httpx, uuid
 
-router = APIRouter(prefix="/webhook", tags=["Webhooks"])
+router = APIRouter(prefix="/webhooks")
 logger = logging.getLogger(__name__)
 
 # Configuración (debería estar en tus variables de entorno)
