@@ -335,9 +335,9 @@ async def create_payment(
 ):
     try:
         # 1. Verificar autenticación y permisos
-        print("\n=== Datos del usuario ===")
-        print(f"ID Usuario: {current_user.get('id')}")
-        print(f"Rol Usuario: {current_user.get('user_role')}")
+        logger.info("\n=== Datos del usuario ===")
+        logger.info(f"ID Usuario: {current_user.get('id')}")
+        logger.info(f"Rol Usuario: {current_user.get('user_role')}")
         
         if current_user["user_role"] != "Cliente":
             raise HTTPException(status_code=403, detail="Acceso denegado")
@@ -347,7 +347,7 @@ async def create_payment(
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         
-        print(f"\nUsuario DB: {user.user_name} ({user.user_email})")
+        logger.info(f"\nUsuario DB: {user.user_name} ({user.user_email})")
 
         # 3. Obtener el carrito del usuario
         order = db.query(Order).filter(
@@ -358,10 +358,10 @@ async def create_payment(
         if not order:
             raise HTTPException(status_code=404, detail="No tienes un carrito activo")
         
-        print(f"\n=== Datos del carrito ===")
-        print(f"ID Orden: {order.id}")
-        print(f"Estado: {order.order_state}")
-        print(f"Fecha: {order.order_date}")
+        logger.info(f"\n=== Datos del carrito ===")
+        logger.info(f"ID Orden: {order.id}")
+        logger.info(f"Estado: {order.order_state}")
+        logger.info(f"Fecha: {order.order_date}")
 
         # 4. Obtener detalles del carrito
         order_details = db.query(OrderDetail).filter(
@@ -371,60 +371,70 @@ async def create_payment(
         if not order_details:
             raise HTTPException(status_code=400, detail="El carrito está vacío")
 
-        print("\n=== Productos en el carrito ===")
+        logger.info("\n=== Productos en el carrito ===")
+        total = 0.0
         for i, detail in enumerate(order_details, 1):
             arrangement = db.query(Arrangement).filter(
                 Arrangement.id == detail.arrangements_id
             ).first()
             
-            print(f"\nProducto #{i}:")
-            print(f"ID: {detail.arrangements_id}")
-            print(f"Nombre: {arrangement.arr_name if arrangement else 'No encontrado'}")
-            print(f"Cantidad: {detail.details_quantity}")
-            print(f"Precio unitario: ${detail.details_price}")
-            print(f"Descuento: {detail.discount}%")
+            logger.info(f"\nProducto #{i}:")
+            logger.info(f"ID: {detail.arrangements_id}")
+            logger.info(f"Nombre: {arrangement.arr_name if arrangement else 'No encontrado'}")
+            logger.info(f"Cantidad: {detail.details_quantity}")
+            logger.info(f"Precio unitario: ${detail.details_price}")
+            logger.info(f"Descuento: {detail.discount}%")
             
             final_price = detail.details_price * (1 - (detail.discount / 100))
             subtotal = final_price * detail.details_quantity
-            print(f"Subtotal: ${subtotal:.2f}")
+            total += subtotal
+            logger.info(f"Subtotal: ${subtotal:.2f}")
 
-        # 5. Calcular total (solo para mostrar)
-        total = sum(
-            detail.details_price * (1 - (detail.discount / 100)) * detail.details_quantity
-            for detail in order_details
-        )
-        print(f"\nTOTAL DEL CARRITO: ${total:.2f}")
+        logger.info(f"\nTOTAL DEL CARRITO: ${total:.2f}")
+        logger.info("\n=== Datos recibidos del frontend ===")
+        logger.info(order_data)
 
-        # 6. Mostrar los datos recibidos del frontend
-        print("\n=== Datos recibidos del frontend ===")
-        print(order_data)
+        # Verificar si ya existe un pago pendiente para esta orden
+        existing_payment = db.query(Payment).filter(
+            Payment.order_id == order.id,
+            Payment.pay_state.in_(["pendiente", "procesando"])
+        ).first()
 
+        if existing_payment:
+            logger.warning(f"Ya existe un pago pendiente para la orden {order.id}")
+            return {
+                "payment_url": f"https://wompi.sv/pay/{existing_payment.pay_transaction_id}",
+                "reference": existing_payment.pay_transaction_id,
+                "amount": existing_payment.pay_amount,
+                "message": "Ya existe un pago pendiente para esta orden"
+            }
+
+        # Crear nuevo pago si no existe uno pendiente
+        reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
+        
         try:
-            reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
-            
             enlace_pago = await create_payment_link(
                 amount=total,
                 description="Compra de arreglos florales",
                 reference=reference,
-                customer_email=user.user_email  # Usar el email del usuario de la DB
+                customer_email=user.user_email
             )
 
-            print("\n=== Respuesta de Wompi ===")
-            print(enlace_pago)
+            logger.info("\n=== Respuesta de Wompi ===")
+            logger.info(enlace_pago)
 
-            # Crear registro de pago en la base de datos
             payment = Payment(
                 order_id=order.id,
                 pay_method="Tarjeta",
                 pay_amount=total,
-                pay_state="pendiente",
-                pay_transaction_id=reference
+                pay_state="procesando",  # Cambiado a "procesando" para mejor seguimiento
+                pay_transaction_id=reference,
+                pay_date=datetime.utcnow()
             )
             
             db.add(payment)
             db.commit()
 
-            # Mapear la respuesta de Wompi a tu estructura de respuesta
             return {
                 "payment_url": enlace_pago.get("urlEnlace") or enlace_pago.get("urlEnlaceLargo"),
                 "reference": reference,
@@ -436,15 +446,15 @@ async def create_payment(
 
         except Exception as e:
             db.rollback()
-            print(f"\n!!! Error al crear pago: {str(e)}")
+            logger.error(f"\n!!! Error al crear pago: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"No se pudo crear el enlace de pago: {str(e)}"
             )
 
     except HTTPException as he:
-        print(f"\n!!! Error controlado: {he.detail}")
+        logger.error(f"\n!!! Error controlado: {he.detail}")
         raise
     except Exception as e:
-        print(f"\n!!! Error inesperado: {str(e)}")
+        logger.error(f"\n!!! Error inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")

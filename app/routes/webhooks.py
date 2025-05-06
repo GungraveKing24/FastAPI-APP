@@ -76,17 +76,18 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Amount: {amount}")
 
         # 3. Find the order and payment
-        order = db.query(Order).options(joinedload(Order.payment)).filter(
+        order = db.query(Order).join(Payment).filter(
             Payment.pay_transaction_id == reference
-        ).first()
+        ).options(joinedload(Order.payment)).first()
 
         if not order:
             error_msg = f"Order not found for reference: {reference}"
             logger.error(error_msg)
             raise HTTPException(status_code=404, detail=error_msg)
 
-        if not order.payment:
-            error_msg = "No payment associated with this order"
+        # Verificar que haya exactamente un pago
+        if len(order.payment) != 1:
+            error_msg = f"Expected exactly one payment, found {len(order.payment)}"
             logger.error(error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
 
@@ -96,6 +97,15 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Payment amount: {order.payment.pay_amount}")
         logger.info(f"Payment state: {order.payment.pay_state}")
 
+        # Obtener el único pago
+        payment = order.payment[0]
+
+        logger.info(f"\nFound order:")
+        logger.info(f"Order ID: {order.id}")
+        logger.info(f"Current state: {order.order_state}")
+        logger.info(f"Payment amount: {payment.pay_amount}")
+        logger.info(f"Payment state: {payment.pay_state}")
+
         # 4. Verify transaction status
         if status not in ["exitosaaprobada", "aprobada"]:
             error_msg = f"Transaction not approved. Status: {status}"
@@ -103,8 +113,8 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=400, detail=error_msg)
 
         # 5. Verify amount matches
-        if abs(float(amount) - float(order.payment.pay_amount)) > 0.01:
-            error_msg = f"Amount mismatch. Expected: {order.payment.pay_amount}, Received: {amount}"
+        if abs(float(amount) - float(payment.pay_amount)) > 0.01:
+            error_msg = f"Amount mismatch. Expected: {payment.pay_amount}, Received: {amount}"
             logger.error(error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
 
