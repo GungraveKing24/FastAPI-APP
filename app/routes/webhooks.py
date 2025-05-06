@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload  # Added joinedload import
 from models.models import Order, Payment
 from config import SessionLocal, WOMPI_CLIENT_SECRET
-import json, logging, datetime
+from datetime import datetime
+import json, logging
 import hmac
 import hashlib
 
@@ -120,7 +121,7 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
             # Actualizar pago
             payment.pay_state = "aprobado"
             payment.pay_transaction_id = transaction_id
-            payment.pay_date = datetime.utcnow()
+            payment.pay_date = datetime.utcnow
             
             # Actualizar orden
             order.order_state = "completado"
