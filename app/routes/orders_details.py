@@ -15,7 +15,7 @@ def get_db():
         db.close()
 
 # Para el cliente 
-@router.get("/details/{order_id}", response_model=OrderDetailResponse)
+@router.get("/order/details/{order_id}", response_model=OrderDetailResponse)
 async def get_user_order_details(
     order_id: int,
     db: Session = Depends(get_db),
@@ -27,12 +27,10 @@ async def get_user_order_details(
         raise HTTPException(status_code=404, detail="Orden no encontrada")
 
     # Verificación de usuario
-    if current_user["user_role"] == "Cliente":
+    if current_user["user_role"] == "Administrador":
         if order.order_user_id != current_user["sub"]:
             raise HTTPException(status_code=403, detail="Acceso denegado")
-    else:
-        raise HTTPException(status_code=403, detail="Acceso denegado")
-
+    
     # Obtener detalles del pedido
     order_details = db.query(OrderDetail).filter(OrderDetail.order_id == order_id).all()
 

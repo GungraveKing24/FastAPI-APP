@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List
 import logging, uuid
 
-router = APIRouter(prefix='/orders', tags=['Orders'])
+router = APIRouter(prefix='/orders')
 logger = logging.getLogger(__name__)
 
 def get_db():
