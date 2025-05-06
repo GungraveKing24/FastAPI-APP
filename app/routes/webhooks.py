@@ -38,37 +38,36 @@ def verify_wompi_signature(body: bytes, received_signature: str) -> bool:
         return False
 
 async def validate_transaction_with_wompi(transaction_id: str) -> bool:
-    """
-    Valida la transacción directamente con la API de Wompi
-    como fallback cuando no hay firma HMAC
-    """
     try:
-        # Implementa la lógica para obtener token y consultar la transacción
-        # Similar a lo que hace el código PHP
-        # Esto es un esquema básico:
-        
-        # 1. Obtener token
         token = await get_wompi_token()
         
-        # 2. Consultar transacción
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"https://api.wompi.sv/TransaccionCompra/{transaction_id}",
                 headers={
                     "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json"
+                    "Accept": "application/json"
                 },
                 timeout=30.0
             )
             
+            # Check for specific Wompi error responses
+            if response.status_code == 404:
+                logger.error(f"Transacción no encontrada: {transaction_id}")
+                return False
+                
             response.raise_for_status()
-            data = response.json()
             
-            # Verificar que sea real y aprobada
+            data = response.json()
+            logger.info(f"Respuesta de Wompi API: {data}")
+            
             return data.get("esReal", False) and data.get("esAprobada", False)
             
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error HTTP al validar transacción: {e.response.text}")
+        return False
     except Exception as e:
-        logger.error(f"Error validando transacción con Wompi: {str(e)}")
+        logger.error(f"Error inesperado al validar transacción: {str(e)}")
         return False
 
 @router.post("/transaction/complete")
@@ -110,8 +109,8 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Monto: {amount}")
 
         # 3. Buscar la orden en la base de datos
-        order = db.query(Order).filter(
-            Order.payment.has(Payment.pay_transaction_id == reference)
+        order = db.query(Order).join(Payment).filter(
+            Payment.pay_transaction_id == reference
         ).first()
 
         if not order:
@@ -196,21 +195,25 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=error_msg)
 
 async def get_wompi_token() -> str:
-    """Obtiene token de acceso de Wompi (similar al código PHP)"""
-    # Implementa la lógica para obtener el token
-    # Esto es un ejemplo básico:
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://id.wompi.sv/connect/token",
-            data={
-                "grant_type": "client_credentials",
-                "client_id": "tu_client_id",
-                "client_secret": "tu_client_secret",
-                "audience": "wompi_api"
-            },
-            timeout=30.0
-        )
+    """Obtiene token de acceso de Wompi"""
+    try:
+        auth = httpx.BasicAuth("tu_client_id", "tu_client_secret")
         
-        response.raise_for_status()
-        data = response.json()
-        return data["access_token"]
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://id.wompi.sv/connect/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "audience": "wompi_api"
+                },
+                auth=auth,
+                timeout=30.0
+            )
+            
+            response.raise_for_status()
+            data = response.json()
+            return data["access_token"]
+            
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error en token request: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
