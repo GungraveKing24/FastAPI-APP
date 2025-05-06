@@ -121,7 +121,7 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
             # Actualizar pago
             payment.pay_state = "aprobado"
             payment.pay_transaction_id = transaction_id
-            payment.pay_date = datetime.utcnow
+            payment.pay_date = datetime.utcnow()
             
             # Actualizar orden
             order.order_state = "completado"
