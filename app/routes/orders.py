@@ -394,22 +394,7 @@ async def create_payment(
         logger.info("\n=== Datos recibidos del frontend ===")
         logger.info(order_data)
 
-        # Verificar si ya existe un pago pendiente para esta orden
-        existing_payment = db.query(Payment).filter(
-            Payment.order_id == order.id,
-            Payment.pay_state.in_(["pendiente", "procesando"])
-        ).first()
-
-        if existing_payment:
-            logger.warning(f"Ya existe un pago pendiente para la orden {order.id}")
-            return {
-                "payment_url": f"https://wompi.sv/pay/{existing_payment.pay_transaction_id}",
-                "reference": existing_payment.pay_transaction_id,
-                "amount": existing_payment.pay_amount,
-                "message": "Ya existe un pago pendiente para esta orden"
-            }
-
-        # Crear nuevo pago si no existe uno pendiente
+        # Crear nuevo pago siempre con nueva referencia
         reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
         
         try:
@@ -423,11 +408,18 @@ async def create_payment(
             logger.info("\n=== Respuesta de Wompi ===")
             logger.info(enlace_pago)
 
+            # Marcar pagos anteriores como expirados
+            db.query(Payment).filter(
+                Payment.order_id == order.id,
+                Payment.pay_state.in_(["pendiente", "procesando"])
+            ).update({"pay_state": "expirado"})
+
+            # Crear nuevo registro de pago
             payment = Payment(
                 order_id=order.id,
                 pay_method="Tarjeta",
                 pay_amount=total,
-                pay_state="procesando",  # Cambiado a "procesando" para mejor seguimiento
+                pay_state="procesando",
                 pay_transaction_id=reference,
                 pay_date=datetime.utcnow()
             )
