@@ -43,6 +43,7 @@ async def get_user_order_details(
         arr = db.query(Arrangement).filter(Arrangement.id == detail.arrangements_id).first()
         arrangements.append(ArrangementInOrder(
             arrangement_name=arr.arr_name,
+            arrangement_img_url=arr.arr_img_url,
             quantity=detail.details_quantity,
             price=detail.details_price,
             discount=detail.discount

@@ -4,6 +4,7 @@ from datetime import datetime
 
 class ArrangementInOrder(BaseModel):
     arrangement_name: str
+    arrangement_img_url: str
     quantity: int
     price: float
     discount: float
