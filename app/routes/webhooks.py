@@ -34,9 +34,7 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
             "IdTransaccion", 
             "ResultadoTransaccion", 
             "Monto", 
-            "EnlacePago",
-            "esReal",
-            "esAprobada"
+            "EnlacePago"
         ]
         
         for field in required_fields:
@@ -49,16 +47,12 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         status = body["ResultadoTransaccion"].lower()
         amount = float(body["Monto"])
         reference = body["EnlacePago"]["IdentificadorEnlaceComercio"]
-        is_real = body["esReal"]
-        is_approved = body["esAprobada"]
 
         logger.info(f"\nTransaction details:")
         logger.info(f"ID: {transaction_id}")
         logger.info(f"Reference: {reference}")
         logger.info(f"Status: {status}")
         logger.info(f"Amount: {amount}")
-        logger.info(f"Is Real: {is_real}")
-        logger.info(f"Is Approved: {is_approved}")
 
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
