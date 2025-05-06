@@ -62,7 +62,7 @@ def get_user_orders(current_user: dict = Depends(get_current_user), db: Session 
 def get_orders_details(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     # Obtener el carrito del usuario
     if current_user["user_role"] == "Administrador":
-        return []
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
 
     cart = db.query(Order).filter(Order.order_user_id == current_user["id"], Order.order_state == "carrito").first()
 
