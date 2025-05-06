@@ -62,7 +62,7 @@ class Order(Base):
     # Eliminar campos de pago de aquí (se moverán a Payment)
     user = relationship("User", back_populates="orders")
     order_details = relationship("OrderDetail", back_populates="order")
-    payment = relationship("Payment", uselist=False, back_populates="order")
+    payment = relationship("Payment", back_populates="order")
 
 # Tabla de Detalles del Pedido
 class OrderDetail(Base):
