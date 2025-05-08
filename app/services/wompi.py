@@ -49,7 +49,7 @@ async def create_payment_link(amount: float, description: str, reference: str, c
                 "permitirPagoEnCuotasAgricola": False
             },
             "configuracion": {
-                "urlRedirect": "http://localhost:5173/profile",
+                "urlRedirect": f"http://localhost:5173/loading?reference={reference}",
                 "urlWebhook": "https://fastapi-app-production-f08f.up.railway.app/webhooks/transaction/complete",
                 "emailsNotificacion": customer_email,
                 "notificarTransaccionCliente": True

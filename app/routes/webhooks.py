@@ -134,7 +134,8 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
                 "status": "success",
                 "message": "Webhook processed successfully",
                 "order_id": order.id,
-                "transaction_id": transaction_id
+                "transaction_id": transaction_id,
+                "redirect_url": "http://localhost:5173/profile"
             }
             
         except Exception as e:
@@ -153,3 +154,15 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
+    
+@router.get("/payments/status/{reference}")
+async def check_payment_status(reference: str, db: Session = Depends(get_db)):
+    payment = db.query(Payment).filter(Payment.pay_transaction_id == reference).first()
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    
+    return {
+        "status": "success" if payment.pay_state == "aprobado" else "pending",
+        "order_id": payment.order_id
+    }
