@@ -30,6 +30,11 @@ WOMPI_CLIENT_ID = os.environ.get("WOMPI_CLIENT_ID", None)
 WOMPI_CLIENT_SECRET = os.environ.get("WOMPI_CLIENT_SECRET", None)
 WOMPI_URL = os.environ.get("WOMPI_URL", None)
 
+# Messages
+MESSAGE_KEY = os.environ.get("MESSAGE_MAILS", None)
+MAIL_USER = os.environ.get("MAIL_ACCOUNT", None)
+
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
