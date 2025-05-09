@@ -60,6 +60,8 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail=error_msg)
 
         transaction_id = body["IdTransaccion"]
+        logger.info(f"Transaction ID: {transaction_id}")
+        print(f"Transaction ID: {transaction_id}")
         status = body["ResultadoTransaccion"].lower()
         amount = float(body["Monto"])
         reference = body["EnlacePago"]["IdentificadorEnlaceComercio"]
@@ -124,7 +126,7 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
             payment.pay_date = datetime.utcnow()
             
             # Actualizar orden
-            order.order_state = "completado"
+            order.order_state = "aprobado"
             
             db.commit()
             
