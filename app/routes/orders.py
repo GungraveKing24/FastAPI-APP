@@ -468,3 +468,30 @@ async def create_payment(
     except Exception as e:
         logger.error(f"\n!!! Error inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@router.get("/notifications/orders")
+async def notification_orders(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user["user_role"] != "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
+    # Get approved orders with their payments (Clientes y invitados)
+    orders = db.query(Order).filter(Order.order_state != "carrito" or Order.order_state != "completado").all()
+
+    if not orders:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron ordenes")
+
+    response = []
+    for order in orders:
+        payment = db.query(Payment).filter(Payment.order_id == order.id).first()
+        response.append({
+            "id": order.id,
+            "order_id": order.id,
+            "order_state": order.order_state,
+            "order_date": order.order_date.isoformat() if order.order_date else None,
+            "customer": order.guest_name or (order.user.user_name if order.user else "Cliente no registrado"),
+            "pay_method": payment.pay_method if payment else "No especificado",
+            "pay_amount": payment.pay_amount if payment else 0,
+            "read": False  # Default unread status
+        })
+
+    return response

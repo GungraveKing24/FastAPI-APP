@@ -129,7 +129,16 @@ async def google_login(callback_url: str = F_URL + "/google/callback"):
     return RedirectResponse(url=auth_url)
 
 @router.get("/google/callback")
-async def google_callback(code: str, state: str, db: Session = Depends(get_db)): 
+async def google_callback(
+    code: str = None,
+    state: str = F_URL + "/google/callback",
+    error: str = None,
+    db: Session = Depends(get_db)
+):  
+    if error == "access_denied":
+        redirect_url = F_URL + "/login?error=login_cancelled"
+        return RedirectResponse(url=redirect_url)
+    
     try:
         callback_url = state
         async with httpx.AsyncClient() as client:

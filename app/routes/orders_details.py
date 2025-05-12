@@ -27,7 +27,7 @@ async def get_user_order_details(
         raise HTTPException(status_code=404, detail="Orden no encontrada")
 
     # Verificación de usuario
-    if current_user["user_role"] == "Administrador":
+    if current_user["user_role"] != "Administrador" and current_user["user_role"] != "Cliente":
         if order.order_user_id != current_user["sub"]:
             raise HTTPException(status_code=403, detail="Acceso denegado")
     
