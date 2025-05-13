@@ -6,8 +6,8 @@ from schemas.s_payment import PaymentLinkResponse
 from config import SessionLocal
 from services.jwt import get_current_user
 from services.wompi import create_payment_link
+from services.messages import send_email
 from datetime import datetime
-from typing import List
 import logging, uuid
 
 router = APIRouter(prefix='/orders')
@@ -182,7 +182,7 @@ def complete_order(db: Session = Depends(get_db), current_user: dict = Depends(g
 
     payment = Payment(
         order_id=order.id,
-        pay_method="online",
+        pay_method="Efectivo",
         pay_amount=total_amount,
         pay_state="pendiente"
     )
@@ -469,6 +469,72 @@ async def create_payment(
         logger.error(f"\n!!! Error inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
+@router.post("/order/cancel/{order_id}")
+async def cancel_order(order_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user["user_role"] != "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
+    orden_cancelar =  db.query(Order).filter(Order.id == order_id).first()
+    if not orden_cancelar:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden no encontrada")
+
+    if orden_cancelar.OrderState == "cancelado":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido cancelada")
+    
+    if orden_cancelar.OrderState == "completado":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido completada y no se puede cancelar")
+
+    orden_cancelar.order_state = "cancelado"
+    db.commit()
+
+    return {"message": "Orden cancelada"}
+
+@router.post("/change/order_state/{order_id}")
+async def change_order_state(
+    order_id: int,
+    new_state: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["user_role"] != "Administrador":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden no encontrada")
+
+    if order.order_state in ["cancelado", "completado"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La orden ya ha sido {order.order_state}"
+        )
+
+    user = db.query(User).filter(User.id == order.order_user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+
+    try:
+        # Actualizar estado
+        order.order_state = new_state
+        db.commit()
+
+        # Enviar email
+        email_result = await send_email(
+            to=user.user_email,
+            subject="Estado de la orden",
+            body=f"El estado de la orden {order.id} ha cambiado a {new_state}."
+        )
+
+        if "error" in email_result:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al enviar el email de notificación")
+
+        return {"message": "Estado de la orden cambiado correctamente"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error al cambiar el estado de la orden: {str(e)}")
+
+# Notificaciones
 @router.get("/notifications/orders")
 async def notification_orders(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     if current_user["user_role"] != "Administrador":

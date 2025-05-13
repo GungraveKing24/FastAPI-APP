@@ -56,6 +56,7 @@ class Order(Base):
     guest_phone = Column(String, nullable=True)  
     guest_address = Column(String, nullable=True)  
 
+    order_comments = Column(Text, nullable=True, default="N/A")
     order_state = Column(String, nullable=False, default="carrito")  # Cambiado a "carrito" para estado temporal
     order_date = Column(DateTime, default=datetime.utcnow)
     
