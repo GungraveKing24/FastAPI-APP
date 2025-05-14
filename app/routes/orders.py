@@ -471,17 +471,17 @@ async def create_payment(
 
 @router.post("/order/cancel/{order_id}")
 async def cancel_order(order_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    if current_user["user_role"] != "Administrador":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+    if current_user["user_role"] != "Cliente":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Acceso denegado")
 
     orden_cancelar =  db.query(Order).filter(Order.id == order_id).first()
     if not orden_cancelar:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Orden no encontrada")
 
-    if orden_cancelar.OrderState == "cancelado":
+    if orden_cancelar.order_state == "cancelado":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido cancelada")
     
-    if orden_cancelar.OrderState == "completado":
+    if orden_cancelar.order_state == "completado":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido completada y no se puede cancelar")
 
     orden_cancelar.order_state = "cancelado"
@@ -509,9 +509,15 @@ async def change_order_state(
             detail=f"La orden ya ha sido {order.order_state}"
         )
 
-    user = db.query(User).filter(User.id == order.order_user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    if order.order_user_id:
+        user = db.query(User).filter(User.id == order.order_user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+        user_email = user.user_email
+    else:
+        if not order.guest_email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email del invitado no disponible")
+        user_email = order.guest_email
 
     try:
         # Actualizar estado
@@ -520,7 +526,7 @@ async def change_order_state(
 
         # Enviar email
         email_result = await send_email(
-            to=user.user_email,
+            to=user_email,
             subject="Estado de la orden",
             body=f"El estado de la orden {order.id} ha cambiado a {new_state}."
         )

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text, DECIMAL
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from config import Base
@@ -86,7 +86,7 @@ class Payment(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     pay_method = Column(String, nullable=False)  # 'Tarjeta', 'Efectivo'
     pay_state = Column(String, nullable=False, default="pendiente")
-    pay_amount = Column(Float, nullable=False)
+    pay_amount = Column(DECIMAL(10, 2), nullable=False)
     pay_transaction_id = Column(String, unique=True, nullable=True)  # Para pagos en línea
     pay_date = Column(DateTime, default=datetime.utcnow)
 
