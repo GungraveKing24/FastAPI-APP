@@ -7,10 +7,10 @@ from config import secret_key, Base, engine
 from routes import auth, categories, arrangements, orders, users, stats, coments, webhooks, orders_details
 
 #Prod mode
-#app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 #dev mode
-app = FastAPI()
+#app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
