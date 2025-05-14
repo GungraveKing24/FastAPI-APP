@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import urlencode
-from config import secret_key
+from config import secret_key, Base, engine
 
 from routes import auth, categories, arrangements, orders, users, stats, coments, webhooks, orders_details
 
@@ -11,6 +11,8 @@ from routes import auth, categories, arrangements, orders, users, stats, coments
 
 #dev mode
 app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
 
 # Middleware CORS
 app.add_middleware(
