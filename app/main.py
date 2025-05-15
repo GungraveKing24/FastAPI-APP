@@ -19,7 +19,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://reactpage-production.up.railway.app"
+        "https://reactpage-production.up.railway.app",
+        "https://arreglitosv.up.railway.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
