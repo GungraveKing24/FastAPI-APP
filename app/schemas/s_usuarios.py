@@ -22,6 +22,7 @@ class UserGoogleAuth(BaseModel):
     user_direction: str
 
 class users_data(BaseModel):
+    id: int
     user_name: str
     user_email: EmailStr
     user_register_date: datetime  # This is now properly typed
