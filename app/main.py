@@ -20,7 +20,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://reactpage-production.up.railway.app",
-        "https://arreglitosv.up.railway.app"
+        "https://arreglitosv.up.railway.app",
+        "www.arreglitosv.com",
+        "arreglitosv.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
