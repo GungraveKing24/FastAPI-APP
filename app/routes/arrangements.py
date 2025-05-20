@@ -5,6 +5,7 @@ from schemas.s_arreglos import arrangement_create, ArrangementResponse, arrangme
 from config import SessionLocal
 from services.jwt import get_current_user
 from services.cloudinary import upload_file
+from typing import List
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ async def create_arrangement(
         arr_name: str = Form(...),
         arr_description: str = Form(...),
         arr_price: float = Form(...),
-        arr_id_cat: int = Form(...),
+        arr_id_cat: List[int] = Form(...),
         arr_stock: int = Form(...),
         arr_discount: int = Form(0),
         image: UploadFile = File(...),
@@ -49,10 +50,10 @@ async def create_arrangement(
         raise HTTPException(status_code=400, detail="El arreglo ya existe")
     
     # Verificar si la categoría existe
-    category = db.query(Category).filter(Category.id == arr_id_cat).first()
-    if not category:
-        raise HTTPException(status_code=400, detail="La categoría no existe")
-    
+    categories = db.query(Category).filter(Category.id.in_(arr_id_cat)).all()
+    if len(categories) != len(arr_id_cat):
+        raise HTTPException(status_code=400, detail="Una o más categorías no existen")
+
     # Validar que el archivo sea una imagen
     if not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
@@ -64,13 +65,13 @@ async def create_arrangement(
 
     # Crear nuevo arreglo con la URL de Cloudinary
     new_arrangement = Arrangement(
-        arr_name=arr_name,  # Use the parameter directly
+        arr_name=arr_name,
         arr_description=arr_description,
         arr_price=arr_price,
         arr_img_url=image_url,
-        arr_id_cat=arr_id_cat,
         arr_stock=arr_stock,
-        arr_discount=arr_discount
+        arr_discount=arr_discount,
+        categories=categories
     )
     
     db.add(new_arrangement)
@@ -115,13 +116,14 @@ async def get_arrangement(arrangements_id: int, db: Session = Depends(get_db)):
     return db.query(Arrangement).filter(Arrangement.id == arrangements_id).first()
 
 # Editar arreglos
+
 @router.patch("/arrangements/edit/{arrangements_id}", response_model=ArrangementResponse)
 async def edit_arrangement(
     arrangements_id: int,
     arr_name: str = Form(None),
     arr_description: str = Form(None),
     arr_price: float = Form(None),
-    arr_id_cat: int = Form(None),
+    arr_id_cat: List[int] = Form(None),
     arr_stock: int = Form(None),
     arr_discount: int = Form(None),
     image: UploadFile = File(None),
@@ -149,7 +151,15 @@ async def edit_arrangement(
     if arr_price is not None:
         arreglo.arr_price = arr_price
     if arr_id_cat is not None:
-        arreglo.arr_id_cat = arr_id_cat
+        # Limpiar relaciones existentes primero
+        arreglo.categories = []
+        db.commit()  # Necesario para limpiar antes de agregar nuevas
+        
+        # Obtener y asignar nuevas categorías
+        categories = db.query(Category).filter(Category.id.in_(arr_id_cat)).all()
+        if len(categories) != len(arr_id_cat):
+            raise HTTPException(status_code=400, detail="Una o más categorías no existen")
+        arreglo.categories = categories
     if arr_stock is not None:
         arreglo.arr_stock = arr_stock
     if arr_discount is not None:

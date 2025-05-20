@@ -1,8 +1,17 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text, DECIMAL
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text, DECIMAL, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from config import Base
 
+# Tabla intermedia para la relación muchos a muchos
+arrangement_category = Table(
+    "arrangement_category",
+    Base.metadata,
+    Column("arrangement_id", Integer, ForeignKey("arrangements.id"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id"), primary_key=True)
+)
+
+# Tabla de Usuarios
 class User(Base):
     __tablename__ = "users"
 
@@ -26,7 +35,7 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name_cat = Column(String, nullable=False, unique=True)
 
-    arrangements = relationship("Arrangement", back_populates="category")
+    arrangements = relationship("Arrangement", secondary=arrangement_category, back_populates="categories")
 
 # Tabla de Productos (Arreglos Florales)
 class Arrangement(Base):
@@ -38,11 +47,10 @@ class Arrangement(Base):
     arr_price = Column(Float, nullable=False)
     arr_img_url = Column(String, nullable=False)
     arr_availability = Column(Boolean, default=True)
-    arr_id_cat = Column(Integer, ForeignKey("categories.id"), nullable=False)
     arr_stock = Column(Integer, default=10)
     arr_discount = Column(Integer, default=0)
 
-    category = relationship("Category", back_populates="arrangements")
+    categories = relationship("Category", secondary=arrangement_category, back_populates="arrangements")
 
 # Tabla de Pedidos
 class Order(Base):
