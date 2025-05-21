@@ -380,6 +380,11 @@ async def create_payment(
         if not order:
             raise HTTPException(status_code=404, detail="No tienes un carrito activo")
         
+        # Actualizar el comntario de la orden
+        if order_data.get("notes"):
+            order.order_comments = order_data["notes"]
+            db.commit()  # Guardar los comentarios inmediatamente
+
         logger.info(f"\n=== Datos del carrito ===")
         logger.info(f"ID Orden: {order.id}")
         logger.info(f"Estado: {order.order_state}")
@@ -419,10 +424,23 @@ async def create_payment(
         # Crear nuevo pago siempre con nueva referencia
         reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
         
+        descripcion_productos = []
+        for detail in order_details:
+            arrangement = db.query(Arrangement).filter(Arrangement.id == detail.arrangements_id).first()
+            if arrangement:
+                final_price = detail.details_price * (1 - (detail.discount / 100))
+                descripcion_productos.append(
+                    f"{detail.details_quantity}x {arrangement.arr_name} (${final_price:.2f} c/u)"
+                )
+
+        descripcion = " | ".join(descripcion_productos)
+        if len(descripcion) > 240:  # Limitar descripción para Wompi
+            descripcion = descripcion[:237] + "..."
+
         try:
             enlace_pago = await create_payment_link(
                 amount=total,
-                description="Compra de arreglos florales",
+                description=descripcion or "Compra de arreglos florales",                
                 reference=reference,
                 customer_email=user.user_email
             )
@@ -524,15 +542,42 @@ async def change_order_state(
         user_email = order.guest_email
 
     try:
+        # Obtener los detalles
+        detalles = db.query(OrderDetail).filter(OrderDetail.order_id == order.id).all()
+        productos_html = ""
+
+        for detalle in detalles:
+            producto = db.query(Arrangement).filter(Arrangement.id == detalle.arrangements_id).first()
+            if producto:
+                productos_html += f"<li><strong>{producto.arr_name}</strong> - Cantidad: {detalle.details_quantity}</li>"
+
         # Actualizar estado
         order.order_state = new_state
         db.commit()
 
+        # HTML del correo
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px;">
+                <img src="https://res.cloudinary.com/dnwggo6kz/image/upload/v1747847292/ArreglitosSV_jxbbms.png" alt="ArreglistoSV" style="width: 150px; display: block; margin: auto;" />
+                <h2 style="text-align: center; color: #2d2d2d;">Estado de tu pedido actualizado</h2>
+                <p>Hola,</p>
+                <p>Queremos informarte que el estado de tu pedido ha sido actualizado a:</p>
+                <p style="font-size: 18px; font-weight: bold; color: #007b5e;">{new_state.upper()}</p>
+                <p>Detalles de tu pedido:</p>
+                <ul>{productos_html}</ul>
+                <p>Gracias por confiar en <strong>ArreglistoSV</strong>.</p>
+                <hr />
+                <p style="font-size: 12px; color: gray;">Este es un correo automático, por favor no responder.</p>
+            </div>
+        </div>
+        """
+
         # Enviar email
         email_result = await send_email(
             to=user_email,
-            subject="Estado de la orden",
-            body=f"El estado de la orden {order.id} ha cambiado a {new_state}."
+            subject="📦 Actualización de tu pedido - ArreglistoSV",
+            html_body=html_content
         )
 
         if "error" in email_result:
