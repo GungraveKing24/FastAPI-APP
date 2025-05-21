@@ -55,6 +55,7 @@ class GuestOrderCreate(BaseModel):
     guest_address: str
     arrangements: list[OrderDetailCreate]  # Lista de productos a comprar
     pay_method: str
+    notes: str
 
 class OrderAdminResponse(BaseModel):
     id: int

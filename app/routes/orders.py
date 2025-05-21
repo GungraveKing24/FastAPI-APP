@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session, joinedload
 from models.models import Order, OrderDetail, Payment, Arrangement, User
 from schemas.s_orders import OrderDetailCreate, OrderDetailResponse, OrderResponse, GuestOrderCreate, OrderAdminResponse, OrderDetailSchema
@@ -159,7 +159,7 @@ def add_to_cart(item: OrderDetailCreate, db: Session = Depends(get_db), current_
 
 #Procesar el pago final
 @router.post("/cart/complete/", response_model=OrderResponse)
-def complete_order(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def complete_order(order_data: dict = Body(...),db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     # Obtener la orden
     order = db.query(Order).filter(
         Order.order_user_id == current_user["id"],
@@ -171,6 +171,10 @@ def complete_order(db: Session = Depends(get_db), current_user: dict = Depends(g
 
     if order.order_state == "procesado":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La orden ya ha sido procesada")
+
+    # Actualizar comentarios si vienen en order_data
+    if order_data.get("notes"):
+        order.order_comments = order_data["notes"]
 
     order.order_state = "procesado"
     order.order_date = datetime.utcnow()
