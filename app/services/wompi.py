@@ -49,8 +49,8 @@ async def create_payment_link(amount: float, description: str, reference: str, c
                 "permitirPagoEnCuotasAgricola": False
             },
             "configuracion": {
-                "urlRedirect": f"http://localhost:5173/loading?reference={reference}",
-                "urlWebhook": "https://fastapi-app-production-f08f.up.railway.app/webhooks/transaction/complete",
+                "urlRedirect": f"https://arreglitosv.com/loading?reference={reference}",
+                "urlWebhook": "https://fastapi-app-production-c2d5.up.railway.app/webhooks/transaction/complete",
                 "emailsNotificacion": customer_email,
                 "notificarTransaccionCliente": True
             }
