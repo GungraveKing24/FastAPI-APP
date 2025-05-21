@@ -424,18 +424,15 @@ async def create_payment(
         # Crear nuevo pago siempre con nueva referencia
         reference = f"ORD-{order.id}-{uuid.uuid4().hex[:6]}"
         
-        descripcion_productos = []
-        for detail in order_details:
-            arrangement = db.query(Arrangement).filter(Arrangement.id == detail.arrangements_id).first()
-            if arrangement:
-                final_price = detail.details_price * (1 - (detail.discount / 100))
-                descripcion_productos.append(
-                    f"{detail.details_quantity}x {arrangement.arr_name} (${final_price:.2f} c/u)"
-                )
-
-        descripcion = " | ".join(descripcion_productos)
-        if len(descripcion) > 240:  # Limitar descripción para Wompi
-            descripcion = descripcion[:237] + "..."
+        descripcion = (
+            f"COMPRA EN ARREGLITOSV \n"
+            f"Orden: #{order.id} - Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n"
+            "Arreglos florales personalizados\n\n"
+            "IMPORTANTE:\n"
+            "- Pago no reembolsable\n"
+            "- Para problemas contactar a:\n"
+            f"cruzgissela5@gmail.com / (+503) 7513 5986)"
+        )
 
         try:
             enlace_pago = await create_payment_link(
