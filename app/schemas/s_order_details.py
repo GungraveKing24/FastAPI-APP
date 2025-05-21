@@ -13,6 +13,7 @@ class OrderDetailResponse(BaseModel):
     order_id: int
     order_state: str
     order_date: datetime
+    order_comments: str
     delivery_address: str
     payment_method: str
     payment_state: str
