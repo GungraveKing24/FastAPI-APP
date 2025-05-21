@@ -136,7 +136,7 @@ async def handle_wompi_webhook(request: Request, db: Session = Depends(get_db)):
                 "message": "Webhook processed successfully",
                 "order_id": order.id,
                 "transaction_id": transaction_id,
-                "redirect_url": "http://localhost:5173/profile"
+                "redirect_url": "https://arreglitosv.com/profile"
             }
             
         except Exception as e:
