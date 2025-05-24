@@ -184,6 +184,28 @@ def complete_order(order_data: dict = Body(...),db: Session = Depends(get_db), c
         for detail in order.order_details
     )
 
+    get_user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not get_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    
+    # Enviar mensaje al administrador
+    messageHTML = f"""
+    <html>
+        <body>
+            <h2>¡Nuevo pedido de {get_user.user_name}!</h2>
+            <p>Detalles del pedido:</p>
+            <ul>
+                <li>Nombre: {get_user.user_name}</li>
+                <li>Correo: {get_user.user_email}</li>
+                <li>Teléfono: {get_user.user_phone}</li>
+                <li>Dirección: {get_user.user_address}</li>
+            </ul>
+        </body>
+    </html>
+    """
+    
+    send_email("smartenterpricesv@gmail.com" ,"Nuevo pedido de " + get_user.user_name, messageHTML)
+
     payment = Payment(
         order_id=order.id,
         pay_method="Efectivo",
@@ -437,7 +459,7 @@ async def create_payment(
         try:
             enlace_pago = await create_payment_link(
                 amount=total,
-                description=descripcion or "Compra de arreglos florales",                
+                description=descripcion,                
                 reference=reference,
                 customer_email=user.user_email
             )
